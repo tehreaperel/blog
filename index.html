@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inkwell — Write & Connect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #14110f;
+            --paper: #faf8f4;
+            --cream: #ede8df;
+            --warm-mid: #9e9488;
+            --accent: #b5451b;
+            --accent-light: #f0e0da;
+            --card-bg: #ffffff;
+            --chat-bg: #0d1117;
+            --chat-surface: #161b22;
+            --chat-surface2: #1c2128;
+            --chat-border: #30363d;
+            --chat-accent: #58a6ff;
+            --chat-green: #3fb950;
+            --chat-text: #e6edf3;
+            --chat-muted: #7d8590;
+            --chat-hover: rgba(255, 255, 255, 0.05);
+        }
+        html.dark {
+            --ink: #e8e3dc;
+            --paper: #1a1714;
+            --cream: #2a2520;
+            --warm-mid: #6e6660;
+            --accent: #d4663a;
+            --accent-light: #3a1f14;
+            --card-bg: #211e1b;
+            --chat-bg: #0d1117;
+            --chat-surface: #161b22;
+            --chat-surface2: #1c2128;
+            --chat-border: #30363d;
+        }
+        html.dark .reader-body { color: #c8bfb5 !important; }
+        html.dark .comment-text { color: #c8bfb5 !important; }
+        html.dark .editor-body { color: #c8bfb5 !important; }
+        html.dark .search-input:focus { background: var(--cream) !important; }
+        html.dark .comment-textarea { background: var(--cream) !important; }
+        html.dark .modal-card { background: #211e1b; border: 1px solid var(--cream); }
+        html.dark .modal-input { background: var(--cream); border-color: var(--cream); color: var(--ink); }
+        html.dark .publish-bar { background: rgba(26, 23, 20, 0.95) !important; }
+        html.dark .editor-cover-placeholder { background: var(--cream) !important; border-color: var(--cream) !important; color: var(--warm-mid) !important; }
+        html.dark .editor-cover-placeholder:hover { background: #3a3530 !important; color: #c8bfb5 !important; }
+        html.dark .body-image-figcaption { color: #8b857e !important; }
+        html.dark .about-crypto-address { background: #1e1b18 !important; border-color: #3a3530 !important; color: #c8bfb5 !important; }
+        html.dark .about-crypto-address:hover { border-color: var(--accent) !important; }
+
+        .theme-toggle {
+            width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--cream);
+            background: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 16px; transition: all 0.15s; color: var(--warm-mid); flex-shrink: 0;
+        }
+        .theme-toggle:hover { background: var(--cream); color: var(--ink); }
+
+        .pdf-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 600; align-items: center; justify-content: center; }
+        .pdf-modal-overlay.open { display: flex; }
+        .pdf-modal { background: var(--paper); border-radius: 16px; padding: 1.75rem; width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); border: 1px solid var(--cream); }
+        .pdf-modal-title { font-family: 'Lora', serif; font-size: 1.2rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .pdf-modal-sub { font-size: 13px; color: var(--warm-mid); margin-bottom: 1.25rem; }
+        .pdf-article-list { max-height: 240px; overflow-y: auto; border: 1px solid var(--cream); border-radius: 8px; margin-bottom: 1rem; }
+        .pdf-article-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--cream); cursor: pointer; transition: background 0.12s; }
+        .pdf-article-item:last-child { border-bottom: none; }
+        .pdf-article-item:hover { background: var(--cream); }
+        .pdf-article-item input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; }
+        .pdf-article-item-title { font-size: 14px; font-weight: 500; flex: 1; }
+        .pdf-article-item-meta { font-size: 11px; color: var(--warm-mid); font-family: 'JetBrains Mono', monospace; }
+        .pdf-options { display: flex; gap: 12px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+        .pdf-opt-label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; color: var(--warm-mid); }
+        .pdf-opt-label input { accent-color: var(--accent); }
+        .pdf-progress { display: none; align-items: center; gap: 10px; font-size: 13px; color: var(--warm-mid); margin-bottom: 1rem; }
+        .pdf-progress.show { display: flex; }
+        .pdf-spinner { width: 18px; height: 18px; border: 2px solid var(--cream); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Outfit', sans-serif; background: var(--paper); color: var(--ink); }
+
+        .shell { display: flex; flex-direction: column; height: 100vh; }
+        nav { height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; flex-shrink: 0; transition: background 0.3s, border-color 0.3s; border-bottom: 1px solid var(--cream); z-index: 200; position: relative; }
+        .nav-logo { font-family: 'Lora', serif; font-size: 20px; font-weight: 700; letter-spacing: -0.3px; cursor: pointer; }
+        .nav-logo span { color: var(--accent); font-style: italic; }
+        .nav-tabs { display: flex; gap: 2px; }
+        .nav-tab { background: none; border: none; cursor: pointer; padding: 6px 16px; font-size: 13.5px; font-family: 'Outfit', sans-serif; color: var(--warm-mid); font-weight: 400; border-radius: 6px; transition: all 0.15s; }
+        .nav-tab.active { color: var(--ink); background: var(--cream); font-weight: 500; }
+        .nav-tab:hover:not(.active) { color: var(--ink); }
+        .nav-right { display: flex; align-items: center; gap: 8px; }
+        .btn-sm { background: none; border: 1px solid var(--cream); cursor: pointer; padding: 6px 14px; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; border-radius: 6px; transition: all 0.15s; color: var(--ink); }
+        .btn-sm:hover { background: var(--cream); }
+        .btn-primary { background: var(--accent); color: #fff; border: none; cursor: pointer; padding: 7px 18px; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; border-radius: 6px; transition: opacity 0.15s; }
+        .btn-primary:hover { opacity: 0.85; }
+        .btn-admin { background: none; border: 1px solid var(--accent); cursor: pointer; padding: 6px 14px; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; border-radius: 6px; transition: all 0.15s; color: var(--accent); }
+        .btn-admin:hover { background: var(--accent); color: #fff; }
+        .btn-admin-logout { background: none; border: 1px solid #e57373; cursor: pointer; padding: 6px 14px; font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 500; border-radius: 6px; transition: all 0.15s; color: #e57373; margin-left: 4px; }
+        .btn-admin-logout:hover { background: #e57373; color: #fff; }
+        .admin-badge { display: inline-flex; align-items: center; gap: 3px; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); padding: 3px 8px; background: var(--accent-light); border-radius: 20px; cursor: default; }
+        .profile-avatar-btn { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; flex-shrink: 0; }
+        .profile-avatar-btn:hover { border-color: var(--accent); }
+
+        .main-area { flex: 1; overflow: hidden; position: relative; }
+        .page { position: absolute; inset: 0; overflow-y: auto; display: none; }
+        .page.active { display: block; }
+
+        .search-bar-wrap { padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--cream); display: flex; gap: 10px; align-items: center; background: var(--paper); position: sticky; top: 0; z-index: 50; }
+        .search-input-wrap { flex: 1; position: relative; }
+        .search-input-wrap .si { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--warm-mid); font-size: 15px; pointer-events: none; }
+        .search-input { width: 100%; padding: 8px 12px 8px 34px; border: 1px solid var(--cream); border-radius: 8px; font-family: 'Outfit', sans-serif; font-size: 14px; background: var(--cream); outline: none; color: var(--ink); transition: border-color 0.15s, background 0.15s; }
+        .search-input:focus { border-color: var(--accent); background: #fff; }
+        .filter-btns { display: flex; gap: 6px; }
+        .filter-btn { background: none; border: 1px solid var(--cream); border-radius: 20px; padding: 5px 14px; font-size: 12px; font-family: 'JetBrains Mono', monospace; cursor: pointer; color: var(--warm-mid); letter-spacing: 0.03em; transition: all 0.15s; }
+        .filter-btn.active, .filter-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        #page-articles { background: var(--paper); }
+        .articles-hero { padding: 2.5rem 1.5rem 1.5rem; max-width: 960px; margin: 0 auto; }
+        .articles-hero h1 { font-family: 'Lora', serif; font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 700; line-height: 1.2; margin-bottom: 0.5rem; }
+        .articles-hero h1 em { font-style: italic; color: var(--accent); }
+        .articles-hero p { font-size: 15px; color: var(--warm-mid); font-weight: 300; max-width: 480px; line-height: 1.6; }
+        .articles-grid { max-width: 960px; margin: 0 auto; padding: 1.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+        .article-card { border: 1px solid var(--cream); border-radius: 10px; padding: 0.75rem; cursor: pointer; transition: all 0.2s; background: var(--card-bg); position: relative; overflow: hidden; }
+        .article-card:hover { border-color: var(--accent); transform: translateY(-1.5px); box-shadow: 0 4px 12px rgba(181,69,27,0.08); }
+        .card-image-wrap { margin: -0.75rem -0.75rem 0.6rem -0.75rem; border-radius: 10px 10px 0 0; overflow: hidden; aspect-ratio: 16/9; background: var(--cream); position: relative; }
+        .card-image-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .card-tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 4px; display: block; }
+        .card-title { font-family: 'Lora', serif; font-size: 0.9rem; font-weight: 700; line-height: 1.3; color: var(--ink); margin-bottom: 4px; }
+        .card-excerpt { font-size: 11.5px; color: var(--warm-mid); line-height: 1.4; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .card-footer { display: flex; align-items: center; justify-content: space-between; }
+        .card-meta { font-size: 10px; color: var(--warm-mid); font-family: 'JetBrains Mono', monospace; }
+        .card-comments-count { font-size: 10px; color: var(--warm-mid); display: flex; align-items: center; gap: 3px; }
+        .card-author { font-size: 10px; color: var(--accent); font-weight: 500; margin-top: 4px; }
+        .no-articles { text-align: center; padding: 4rem 1rem; color: var(--warm-mid); grid-column: 1/-1; }
+        .no-articles p { font-family: 'Lora', serif; font-style: italic; font-size: 1.1rem; }
+
+        #page-read { background: var(--paper); }
+        .reader-wrap { max-width: 700px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+        .reader-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 2rem; }
+        .back-btn { background: none; border: none; cursor: pointer; color: var(--warm-mid); font-size: 13px; font-family: 'Outfit', sans-serif; display: flex; align-items: center; gap: 5px; transition: color 0.15s; padding: 0; }
+        .back-btn:hover { color: var(--ink); }
+        .reader-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); padding: 3px 10px; background: var(--accent-light); border-radius: 20px; }
+        .reader-title { font-family: 'Lora', serif; font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 700; line-height: 1.2; margin-bottom: 0.75rem; }
+        .reader-subtitle { font-size: 16px; color: var(--warm-mid); font-weight: 300; margin-bottom: 1.25rem; line-height: 1.6; }
+        .reader-hero-image { width: 100%; border-radius: 12px; margin-bottom: 2rem; display: block; max-height: 460px; object-fit: cover; border: 1px solid var(--cream); }
+        .reader-meta-row { display: flex; align-items: center; gap: 14px; padding-bottom: 1.5rem; border-bottom: 1px solid var(--cream); margin-bottom: 2rem; flex-wrap: wrap; }
+        .reader-author-chip { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .reader-author-chip .av { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; }
+        .reader-author-name { font-size: 13.5px; font-weight: 500; }
+        .reader-date { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--warm-mid); }
+        .reader-readtime { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--warm-mid); }
+        .reader-body { font-size: 17px; line-height: 1.9; color: #2a2320; font-weight: 300; }
+        .reader-body p { margin-bottom: 1.5rem; }
+        .body-image-figure { margin: 1.75rem 0; text-align: center; }
+        .body-image-figure img { max-width: 100%; border-radius: 10px; border: 1px solid var(--cream); display: block; margin: 0 auto; }
+        .body-image-figcaption { font-size: 13px; color: var(--warm-mid); font-style: italic; margin-top: 0.5rem; font-family: 'Outfit', sans-serif; }
+        .delete-article-btn { margin-left: auto; background: none; border: 1px solid #eee; color: #bbb; border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+        .delete-article-btn:hover { border-color: #e57373; color: #e57373; }
+
+        .comments-section { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--cream); }
+        .comments-title { font-family: 'Lora', serif; font-size: 1.1rem; font-weight: 600; margin-bottom: 1.5rem; }
+        .comment-form { display: flex; gap: 10px; margin-bottom: 2rem; align-items: flex-start; }
+        .comment-form .av { flex-shrink: 0; }
+        .comment-form-right { flex: 1; }
+        .comment-textarea { width: 100%; border: 1px solid var(--cream); border-radius: 8px; padding: 10px 12px; font-family: 'Outfit', sans-serif; font-size: 14px; resize: none; min-height: 72px; outline: none; color: var(--ink); background: var(--card-bg); transition: border-color 0.15s; }
+        .comment-textarea:focus { border-color: var(--accent); }
+        .comment-form-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
+        .comment-item { display: flex; gap: 10px; margin-bottom: 1.25rem; animation: fadeUp 0.3s ease both; }
+        .comment-bubble { flex: 1; background: var(--card-bg); border: 1px solid var(--cream); border-radius: 8px; padding: 10px 12px; }
+        .comment-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .comment-name { font-size: 13px; font-weight: 600; }
+        .comment-time { font-size: 11px; color: var(--warm-mid); font-family: 'JetBrains Mono', monospace; }
+        .comment-text { font-size: 14px; color: #2a2320; line-height: 1.6; }
+        .no-comments { text-align: center; padding: 1.5rem; color: var(--warm-mid); font-style: italic; font-size: 14px; }
+
+        #page-write { background: var(--paper); }
+        .editor-wrap { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem 100px; }
+        .editor-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .editor-status { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--warm-mid); }
+        .editor-field-row { display: flex; gap: 10px; margin-bottom: 0.75rem; }
+        .editor-tag-input { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; border: none; outline: none; background: transparent; color: var(--accent); width: 140px; }
+        .editor-tag-input::placeholder { color: var(--cream); }
+        .editor-title { width: 100%; font-family: 'Lora', serif; font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 700; border: none; outline: none; background: transparent; color: var(--ink); margin-bottom: 0.5rem; line-height: 1.2; }
+        .editor-title::placeholder { color: var(--cream); }
+        .editor-subtitle { width: 100%; font-size: 15px; font-weight: 300; border: none; outline: none; background: transparent; color: var(--warm-mid); border-bottom: 1px solid var(--cream); padding-bottom: 1rem; margin-bottom: 1rem; }
+        .editor-subtitle::placeholder { color: var(--cream); }
+
+        .editor-cover-area { margin-bottom: 1.25rem; }
+        .editor-cover-preview { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--cream); display: none; }
+        .editor-cover-preview.has-image { display: block; }
+        .editor-cover-preview img { width: 100%; max-height: 300px; object-fit: cover; display: block; }
+        .editor-cover-remove { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; z-index: 5; }
+        .editor-cover-remove:hover { background: rgba(200,40,40,0.8); }
+        .editor-cover-placeholder { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border: 2px dashed var(--cream); border-radius: 10px; cursor: pointer; color: var(--warm-mid); font-size: 13px; font-family: 'Outfit', sans-serif; transition: all 0.15s; background: var(--card-bg); }
+        .editor-cover-placeholder:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+        .editor-cover-preview.has-image~.editor-cover-placeholder { display: none; }
+
+        .editor-toolbar-row { display: flex; gap: 6px; margin-bottom: 0.75rem; align-items: center; }
+        .editor-toolbar-btn { background: none; border: 1px solid var(--cream); border-radius: 6px; padding: 5px 10px; font-size: 12px; font-family: 'Outfit', sans-serif; cursor: pointer; color: var(--warm-mid); transition: all 0.15s; display: flex; align-items: center; gap: 5px; }
+        .editor-toolbar-btn:hover { background: var(--cream); color: var(--ink); }
+
+        .editor-body { width: 100%; min-height: 420px; font-family: 'Outfit', sans-serif; font-size: 17px; line-height: 1.9; font-weight: 300; border: none; outline: none; resize: none; background: transparent; color: #2a2320; }
+        .editor-body::placeholder { color: var(--cream); }
+        .publish-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(250,248,244,0.95); backdrop-filter: blur(8px); border-top: 1px solid var(--cream); padding: 0.875rem 1.5rem; display: flex; justify-content: flex-end; gap: 10px; z-index: 60; }
+
+        #page-profile { background: var(--paper); }
+        .profile-wrap { max-width: 680px; margin: 0 auto; padding: 2rem 1.5rem; }
+        .profile-header-card { background: var(--card-bg); border: 1px solid var(--cream); border-radius: 16px; padding: 2rem; margin-bottom: 1.5rem; position: relative; }
+        .profile-av-large { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 1rem; }
+        .profile-name-input { font-family: 'Lora', serif; font-size: 1.5rem; font-weight: 700; border: none; outline: none; background: transparent; color: var(--ink); width: 100%; }
+        .profile-bio-input { width: 100%; font-size: 14px; color: var(--warm-mid); font-weight: 300; border: none; outline: none; background: transparent; resize: none; min-height: 48px; line-height: 1.6; margin-top: 4px; }
+        .profile-name-input::placeholder, .profile-bio-input::placeholder { color: var(--cream); }
+        .profile-color-row { display: flex; gap: 8px; margin-top: 1rem; flex-wrap: wrap; }
+        .color-swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
+        .color-swatch.active { border-color: var(--ink); }
+        .profile-stats-row { display: flex; gap: 1.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--cream); }
+        .pstat { text-align: center; }
+        .pstat-num { font-family: 'Lora', serif; font-size: 1.4rem; font-weight: 700; display: block; }
+        .pstat-label { font-size: 12px; color: var(--warm-mid); }
+        .profile-articles-title { font-family: 'Lora', serif; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--warm-mid); }
+
+        #page-about { background: var(--paper); }
+        .about-wrap { max-width: 680px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+        .about-card { background: var(--card-bg); border: 1px solid var(--cream); border-radius: 16px; padding: 2.5rem 2rem; }
+        .about-name { font-family: 'Lora', serif; font-size: clamp(1.8rem, 3.5vw, 2.4rem); font-weight: 700; margin-bottom: 0.4rem; line-height: 1.2; color: var(--ink); }
+        .about-role { font-size: 15px; color: var(--accent); font-weight: 500; margin-bottom: 1.5rem; font-family: 'Outfit', sans-serif; letter-spacing: 0.02em; }
+        .about-bio { font-size: 15px; line-height: 1.8; color: var(--ink); font-weight: 300; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--cream); }
+        .about-bio p { margin-bottom: 1rem; }
+        .about-bio p:last-child { margin-bottom: 0; }
+        .about-support { margin-bottom: 1.75rem; }
+        .about-support-text { font-size: 14px; color: var(--warm-mid); line-height: 1.7; font-weight: 300; margin-bottom: 0.5rem; }
+        .about-crypto-section { display: flex; flex-direction: column; gap: 0.85rem; }
+        .about-crypto-item { display: flex; flex-direction: column; gap: 5px; }
+        .about-crypto-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 600; }
+        .about-crypto-row { display: flex; align-items: center; gap: 8px; }
+        .about-crypto-address { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 10px 14px; border: 1px solid var(--cream); border-radius: 8px; background: var(--cream); color: var(--ink); word-break: break-all; user-select: all; transition: border-color 0.15s; line-height: 1.5; }
+        .about-crypto-address:hover { border-color: var(--accent); background: var(--card-bg); }
+        .about-copy-btn { flex-shrink: 0; background: none; border: 1px solid var(--cream); cursor: pointer; padding: 8px 14px; font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 500; border-radius: 6px; transition: all 0.15s; color: var(--warm-mid); white-space: nowrap; }
+        .about-copy-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .about-copy-btn.copied { background: #2c6e49; color: #fff; border-color: #2c6e49; }
+
+        #page-chat { background: var(--chat-bg); color: var(--chat-text); display: none; overflow: hidden; }
+        #page-chat.active { display: flex; flex-direction: column; }
+        .chat-body { flex: 1; display: flex; overflow: hidden; }
+        .chat-sidebar { width: 240px; flex-shrink: 0; background: var(--chat-surface); border-right: 1px solid var(--chat-border); display: flex; flex-direction: column; overflow: hidden; }
+        .sidebar-section { padding: 12px 8px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--chat-muted); font-family: 'JetBrains Mono', monospace; }
+        .channel-item { display: flex; align-items: center; gap: 7px; padding: 6px 10px; cursor: pointer; border-radius: 6px; margin: 1px 6px; transition: background 0.12s; font-size: 14px; color: var(--chat-muted); }
+        .channel-item:hover { background: var(--chat-hover); color: var(--chat-text); }
+        .channel-item.active { background: rgba(88,166,255,0.15); color: var(--chat-accent); }
+        .channel-hash { font-family: 'JetBrains Mono', monospace; font-size: 15px; opacity: 0.7; }
+        .channel-name { flex: 1; }
+        .channel-badge { background: var(--chat-accent); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center; }
+        .online-section { margin-top: auto; border-top: 1px solid var(--chat-border); padding: 10px 8px; }
+        .online-user-item { display: flex; align-items: center; gap: 8px; padding: 4px 4px; font-size: 13px; color: var(--chat-muted); }
+        .online-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--chat-green); flex-shrink: 0; }
+        .add-channel-btn { display: flex; align-items: center; gap: 7px; padding: 6px 10px; cursor: pointer; border-radius: 6px; margin: 1px 6px; font-size: 14px; color: var(--chat-muted); background: none; border: none; font-family: 'Outfit', sans-serif; transition: background 0.12s; width: calc(100% - 12px); }
+        .add-channel-btn:hover { background: var(--chat-hover); color: var(--chat-text); }
+
+        .chat-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { padding: 0 1rem; height: 48px; border-bottom: 1px solid var(--chat-border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .chat-search-input { margin-left: auto; background: rgba(255,255,255,0.07); border: 1px solid var(--chat-border); border-radius: 6px; padding: 5px 10px; color: var(--chat-text); font-family: 'Outfit', sans-serif; font-size: 13px; outline: none; width: 180px; transition: border-color 0.15s; }
+        .chat-search-input:focus { border-color: var(--chat-accent); }
+        .chat-search-input::placeholder { color: var(--chat-muted); }
+
+        .messages-area { flex: 1; overflow-y: auto; padding: 1rem 1rem 0.5rem; display: flex; flex-direction: column; gap: 2px; }
+        .messages-area::-webkit-scrollbar { width: 4px; }
+        .messages-area::-webkit-scrollbar-thumb { background: var(--chat-border); border-radius: 2px; }
+        .msg-group { display: flex; gap: 10px; padding: 4px 4px; border-radius: 6px; transition: background 0.1s; animation: fadeUp 0.25s ease both; position: relative; }
+        .msg-group:hover { background: rgba(255,255,255,0.03); }
+        .msg-av { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; margin-top: 2px; }
+        .msg-content { flex: 1; min-width: 0; }
+        .msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+        .msg-username { font-weight: 600; font-size: 14px; }
+        .msg-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--chat-muted); }
+        .msg-text { font-size: 14px; line-height: 1.5; color: rgba(230,237,243,0.85); word-break: break-word; }
+        .msg-image { max-width: 320px; max-height: 240px; border-radius: 8px; margin-top: 6px; display: block; cursor: zoom-in; }
+        .msg-file { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.07); border: 1px solid var(--chat-border); border-radius: 8px; padding: 10px 14px; margin-top: 6px; max-width: 300px; }
+        .msg-file-icon { font-size: 22px; }
+        .msg-file-info { flex: 1; min-width: 0; }
+        .msg-file-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .msg-file-size { font-size: 11px; color: var(--chat-muted); font-family: 'JetBrains Mono', monospace; }
+        .msg-file-dl { color: var(--chat-accent); font-size: 11px; text-decoration: none; margin-left: auto; flex-shrink: 0; }
+        .msg-reactions { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+        .msg-reaction { background: rgba(255,255,255,0.08); border: 1px solid var(--chat-border); border-radius: 20px; padding: 2px 8px; font-size: 12px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 4px; }
+        .msg-reaction:hover, .msg-reaction.mine { background: rgba(88,166,255,0.18); border-color: rgba(88,166,255,0.4); }
+        .system-msg { text-align: center; font-size: 11px; color: var(--chat-muted); font-family: 'JetBrains Mono', monospace; padding: 8px 0; letter-spacing: 0.03em; }
+        .msg-reply-preview { background: rgba(255,255,255,0.05); border-left: 3px solid var(--chat-accent); border-radius: 0 4px 4px 0; padding: 4px 8px; margin-bottom: 4px; font-size: 12px; color: var(--chat-muted); }
+        .msg-action-btns { opacity: 0; position: absolute; right: 8px; top: 2px; background: var(--chat-surface2); border: 1px solid var(--chat-border); border-radius: 8px; display: flex; gap: 1px; padding: 3px; transition: opacity 0.15s; }
+        .msg-group:hover .msg-action-btns { opacity: 1; }
+        .mab { background: none; border: none; cursor: pointer; padding: 3px 6px; border-radius: 4px; font-size: 14px; transition: background 0.1s; color: var(--chat-muted); }
+        .mab:hover { background: var(--chat-hover); color: var(--chat-text); }
+
+        .chat-input-area { padding: 0.75rem 1rem; border-top: 1px solid var(--chat-border); flex-shrink: 0; }
+        .reply-banner { background: rgba(88,166,255,0.1); border: 1px solid rgba(88,166,255,0.3); border-radius: 6px; padding: 6px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--chat-muted); }
+        .reply-banner-text { flex: 1; }
+        .reply-close { background: none; border: none; cursor: pointer; color: var(--chat-muted); font-size: 14px; padding: 0; }
+        .chat-input-box { background: var(--chat-surface2); border: 1px solid var(--chat-border); border-radius: 10px; transition: border-color 0.2s; }
+        .chat-input-box:focus-within { border-color: rgba(88,166,255,0.5); }
+        .chat-input-top { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+        .name-input { background: none; border: none; outline: none; color: var(--chat-accent); font-family: 'JetBrains Mono', monospace; font-size: 12px; width: 110px; flex-shrink: 0; }
+        .name-input::placeholder { color: var(--chat-muted); }
+        .name-sep { width: 1px; height: 16px; background: var(--chat-border); flex-shrink: 0; }
+        .msg-input { flex: 1; background: none; border: none; outline: none; color: var(--chat-text); font-family: 'Outfit', sans-serif; font-size: 14px; }
+        .msg-input::placeholder { color: var(--chat-muted); }
+        .chat-input-actions { display: flex; align-items: center; gap: 4px; padding: 0 8px 8px; border-top: 1px solid var(--chat-border); padding-top: 6px; margin-top: 0; }
+        .chat-action-btn { background: none; border: none; cursor: pointer; color: var(--chat-muted); font-size: 16px; padding: 4px 6px; border-radius: 6px; transition: all 0.12s; font-family: 'Outfit', sans-serif; font-size: 13px; }
+        .chat-action-btn:hover { background: var(--chat-hover); color: var(--chat-text); }
+        .emoji-row { display: flex; gap: 4px; flex-wrap: wrap; padding: 4px 0 2px; }
+        .eq { background: none; border: none; cursor: pointer; font-size: 18px; padding: 2px 4px; border-radius: 4px; transition: background 0.1s; }
+        .eq:hover { background: rgba(255,255,255,0.1); }
+        .send-btn-main { margin-left: auto; background: var(--chat-accent); border: none; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: opacity 0.15s; flex-shrink: 0; color: #fff; }
+        .send-btn-main:hover { opacity: 0.8; }
+        .file-preview-area { padding: 6px 12px; border-bottom: 1px solid var(--chat-border); }
+        .file-preview-item { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.07); border-radius: 8px; padding: 6px 10px; }
+        .file-preview-name { font-size: 12px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .file-preview-rm { background: none; border: none; cursor: pointer; color: var(--chat-muted); font-size: 13px; padding: 0 2px; }
+
+        .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; }
+        .lightbox.open { display: flex; }
+        .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+        .lightbox-close { position: absolute; top: 20px; right: 24px; background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; }
+
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 500; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal-card { background: var(--paper); border-radius: 16px; padding: 1.75rem; width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .modal-title { font-family: 'Lora', serif; font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem; }
+        .modal-input { width: 100%; border: 1px solid var(--cream); border-radius: 8px; padding: 9px 12px; font-family: 'Outfit', sans-serif; font-size: 14px; outline: none; color: var(--ink); background: #fff; margin-bottom: 1rem; }
+        .modal-input:focus { border-color: var(--accent); }
+        .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+        .modal-error { color: #e57373; font-size: 12px; margin-bottom: 0.75rem; display: none; }
+        .modal-error.show { display: block; }
+        .modal-success { color: #2c6e49; font-size: 12px; margin-bottom: 0.75rem; display: none; }
+        .modal-success.show { display: block; }
+
+        body.in-chat nav { background: var(--chat-surface); border-bottom-color: var(--chat-border); }
+        body.in-chat .nav-logo { color: var(--chat-text); }
+        body.in-chat .nav-tab { color: var(--chat-muted); }
+        body.in-chat .nav-tab.active { color: var(--chat-text); background: rgba(255,255,255,0.08); }
+        body.in-chat .nav-tab:hover:not(.active) { color: var(--chat-text); }
+        body.in-chat .btn-sm { color: var(--chat-text); border-color: var(--chat-border); }
+        body.in-chat .btn-sm:hover { background: var(--chat-hover); }
+        body.in-chat .btn-primary { background: var(--chat-accent); }
+        body.in-chat .btn-admin { color: var(--chat-accent); border-color: var(--chat-accent); }
+        body.in-chat .btn-admin:hover { background: var(--chat-accent); color: #fff; }
+        body.in-chat .btn-admin-logout { color: #e57373; border-color: #e57373; }
+        body.in-chat .btn-admin-logout:hover { background: #e57373; color: #fff; }
+        body.in-chat .admin-badge { color: var(--chat-accent); background: rgba(88,166,255,0.15); }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .article-card { animation: fadeUp 0.35s ease both; }
+
+        [data-tip] { position: relative; }
+        [data-tip]:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); background: #111; color: #eee; font-size: 11px; padding: 3px 8px; border-radius: 4px; white-space: nowrap; pointer-events: none; z-index: 99; }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <nav id="main-nav">
+        <div class="nav-logo" onclick="showPage('articles')">ink<span>well</span></div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" id="tab-articles" onclick="showPage('articles')">Articles</button>
+            <button class="nav-tab" id="tab-chat" onclick="showPage('chat')">Chat</button>
+            <button class="nav-tab" id="tab-profile" onclick="showPage('profile')">Profile</button>
+            <button class="nav-tab" id="tab-about" onclick="showPage('about')">About</button>
+        </div>
+        <div class="nav-right" id="nav-right">
+            <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark/light mode">🌙</button>
+            <button class="btn-sm" onclick="openPdfModal()" title="Export articles to PDF">⬇ PDF</button>
+            <button class="btn-primary" id="btn-write" onclick="showPage('write')">+ Write</button>
+            <button class="btn-admin" id="btn-admin-login" onclick="openAdminModal()" title="Admin sign in">🔑 Admin</button>
+            <span class="admin-badge" id="admin-badge" style="display:none;" title="Logged in as Vladimir">⚡ Vladimir</span>
+            <button class="btn-admin-logout" id="btn-admin-logout" style="display:none;" onclick="adminLogout()" title="Logout">✕</button>
+            <div class="profile-avatar-btn" id="nav-avatar" onclick="showPage('profile')" data-tip="Your profile"></div>
+        </div>
+    </nav>
+
+    <div class="main-area">
+        <div id="page-articles" class="page active">
+            <div class="search-bar-wrap">
+                <div class="search-input-wrap"><span class="si">🔍</span><input class="search-input" id="articleSearch" placeholder="Search articles, tags, topics…" oninput="filterArticles()"></div>
+                <div class="filter-btns" id="tagFilters"></div>
+            </div>
+            <div class="articles-hero"><h1>Welcome dear <em>reader</em></h1><p>I am expressing my thoughts and analysis in articles.</p></div>
+            <div class="articles-grid" id="articlesGrid"></div>
+        </div>
+
+        <div id="page-read" class="page">
+            <div class="reader-wrap">
+                <div class="reader-nav">
+                    <button class="back-btn" onclick="showPage('articles')">← Back</button>
+                    <span class="reader-tag" id="reader-tag"></span>
+                    <div style="margin-left:auto;display:flex;gap:8px;" id="reader-admin-actions">
+                        <button class="btn-sm" id="edit-article-btn" onclick="editCurrentArticle()" style="font-size:12px;padding:4px 14px;display:none;">✏️ Edit</button>
+                        <button class="delete-article-btn" id="delete-article-btn" onclick="deleteCurrentArticle()" style="display:none;">Delete</button>
+                    </div>
+                </div>
+                <h1 class="reader-title" id="reader-title"></h1>
+                <p class="reader-subtitle" id="reader-subtitle"></p>
+                <div class="reader-meta-row">
+                    <div class="reader-author-chip" id="reader-author-chip" onclick="showPage('profile')">
+                        <div class="av" id="reader-av" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;"></div>
+                        <span class="reader-author-name" id="reader-author-name"></span>
+                    </div>
+                    <span class="reader-date" id="reader-date"></span>
+                    <span class="reader-readtime" id="reader-readtime"></span>
+                    <span id="reader-edited" style="display:none;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);padding:2px 8px;background:var(--accent-light);border-radius:20px;"></span>
+                </div>
+                <img class="reader-hero-image" id="reader-hero-image" src="" alt="Cover image" style="display:none;">
+                <div class="reader-body" id="reader-body"></div>
+                <div class="comments-section">
+                    <div class="comments-title" id="comments-title">Comments</div>
+                    <div class="comment-form">
+                        <div class="av" id="comment-av" style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;flex-shrink:0;"></div>
+                        <div class="comment-form-right">
+                            <textarea class="comment-textarea" id="commentText" placeholder="Share your thoughts…" rows="2"></textarea>
+                            <div class="comment-form-footer"><button class="btn-primary" onclick="postComment()" style="font-size:13px;padding:6px 16px;">Post comment</button></div>
+                        </div>
+                    </div>
+                    <div id="commentsList"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-write" class="page">
+            <div class="editor-wrap">
+                <div class="editor-topbar"><button class="btn-sm" onclick="showPage('articles')">← Discard</button><span class="editor-status" id="editor-status">new draft</span></div>
+                <input class="editor-tag-input" id="editorTag" placeholder="ADD TAG" maxlength="20">
+                <input class="editor-title" id="editorTitle" placeholder="Your title here…" maxlength="120" oninput="autosaveDraft()">
+                <input class="editor-subtitle" id="editorSubtitle" placeholder="A short description…" oninput="autosaveDraft()">
+                <div class="editor-cover-area">
+                    <div class="editor-cover-preview" id="editorCoverPreview"><img id="editorCoverImg" src="" alt="Cover preview"><button class="editor-cover-remove" onclick="removeCoverImage()">✕</button></div>
+                    <div class="editor-cover-placeholder" id="editorCoverPlaceholder" onclick="document.getElementById('coverFileInput').click()">🖼️ Add a cover image (optional)</div>
+                    <input type="file" id="coverFileInput" accept="image/*" style="display:none" onchange="handleCoverImageUpload(event)">
+                </div>
+                <div class="editor-toolbar-row">
+                    <button class="editor-toolbar-btn" onclick="document.getElementById('bodyImageInput').click()">🖼️ Insert image in body</button>
+                    <span style="font-size:11px;color:var(--warm-mid);">Images are inserted where your cursor is.</span>
+                    <input type="file" id="bodyImageInput" accept="image/*" style="display:none" onchange="handleBodyImageInsert(event)">
+                </div>
+                <textarea class="editor-body" id="editorBody" placeholder="Begin writing your story…" oninput="autosaveDraft()"></textarea>
+            </div>
+            <div class="publish-bar">
+                <button class="btn-sm" id="editor-cancel-btn" onclick="cancelEdit()">Cancel</button>
+                <button class="btn-primary" id="editor-publish-btn" onclick="publishArticle()">Publish article →</button>
+            </div>
+        </div>
+
+        <div id="page-profile" class="page">
+            <div class="profile-wrap">
+                <div class="profile-header-card">
+                    <div class="profile-av-large" id="profile-av-large"></div>
+                    <input class="profile-name-input" id="profileName" placeholder="Your name" maxlength="40" oninput="saveProfile()">
+                    <textarea class="profile-bio-input" id="profileBio" placeholder="A short bio…" maxlength="200" oninput="saveProfile()"></textarea>
+                    <div class="profile-color-row" id="colorSwatches"></div>
+                    <div class="profile-stats-row">
+                        <div class="pstat"><span class="pstat-num" id="stat-articles">0</span><span class="pstat-label">articles</span></div>
+                        <div class="pstat"><span class="pstat-num" id="stat-comments">0</span><span class="pstat-label">comments</span></div>
+                        <div class="pstat"><span class="pstat-num" id="stat-msgs">0</span><span class="pstat-label">messages</span></div>
+                    </div>
+                </div>
+                <div class="profile-articles-title">Your articles</div>
+                <div id="profile-articles-list"></div>
+            </div>
+        </div>
+
+        <div id="page-about" class="page">
+            <div class="about-wrap">
+                <div class="about-card">
+                    <h1 class="about-name">I'm Vladimir</h1>
+                    <p class="about-role">Dissident, Student – Web Designer. Publisher.</p>
+                    <div class="about-bio">
+                        <p>I am studying computing systems and I am deeply interested in programming and AI. I am seeking a job related to Help Desk. I am learning JavaScript, Python, and other programming languages in order to make open source projects so I can bring value to this world.</p>
+                    </div>
+                    <div class="about-support">
+                        <p class="about-support-text">If you want to support my work, the best way is to share this website.</p>
+                        <p class="about-support-text">If you want to donate and contribute, you are welcome to do so:</p>
+                    </div>
+                    <div class="about-crypto-section">
+                        <div class="about-crypto-item"><span class="about-crypto-label">USDT (ERC-20 / BEP-20)</span><div class="about-crypto-row"><span class="about-crypto-address" id="crypto-usdt">0xa1679fA4ABC7D3aCa6660C57133B6B482C1992ca</span><button class="about-copy-btn" onclick="copyCryptoAddress('crypto-usdt', this)">📋 Copy</button></div></div>
+                        <div class="about-crypto-item"><span class="about-crypto-label">Bitcoin (BTC)</span><div class="about-crypto-row"><span class="about-crypto-address" id="crypto-btc">bc1q49zr4wng8kkz9w8kplm2m7yj07r8qv8urxap43</span><button class="about-copy-btn" onclick="copyCryptoAddress('crypto-btc', this)">📋 Copy</button></div></div>
+                        <div class="about-crypto-item"><span class="about-crypto-label">Solana (SOL)</span><div class="about-crypto-row"><span class="about-crypto-address" id="crypto-sol">D85VhCJi2v2ijqK14fkrwtrMdKiGn6tJ9MFffAAEpyDo</span><button class="about-copy-btn" onclick="copyCryptoAddress('crypto-sol', this)">📋 Copy</button></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-chat" class="page">
+            <div class="chat-body">
+                <div class="chat-sidebar">
+                    <div class="sidebar-section">Channels</div>
+                    <div id="channelList"></div>
+                    <button class="add-channel-btn" onclick="openNewChannelModal()">＋ Add channel</button>
+                    <div class="online-section">
+                        <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--chat-muted);font-family:'JetBrains Mono',monospace;margin-bottom:6px;">Online</div>
+                        <div class="online-user-item"><div class="online-dot"></div><span id="online-name">you</span></div>
+                    </div>
+                </div>
+                <div class="chat-main">
+                    <div class="chat-header"><span style="font-family:'JetBrains Mono',monospace;color:var(--chat-muted);font-size:16px;">#</span><span style="font-weight:600;font-size:15px;" id="chat-channel-name">general</span><span style="font-size:13px;color:var(--chat-muted);" id="chat-channel-desc"></span><input class="chat-search-input" id="chatSearch" placeholder="Search messages…" oninput="filterMessages()"></div>
+                    <div class="messages-area" id="messagesArea"></div>
+                    <div class="chat-input-area">
+                        <div id="replyBanner" style="display:none;" class="reply-banner"><span class="reply-banner-text" id="replyBannerText"></span><button class="reply-close" onclick="cancelReply()">✕</button></div>
+                        <div id="filePreviews"></div>
+                        <div class="chat-input-box">
+                            <div class="chat-input-top"><input class="name-input" id="chatName" placeholder="your name"><div class="name-sep"></div><input class="msg-input" id="chatMsg" placeholder="Message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"><button class="send-btn-main" onclick="sendMessage()">↑</button></div>
+                            <div class="chat-input-actions"><div class="emoji-row" id="quickEmoji"></div><button class="chat-action-btn" onclick="document.getElementById('fileInput').click()">📎</button><button class="chat-action-btn" onclick="document.getElementById('imageInput').click()">🖼️</button><input type="file" id="fileInput" style="display:none" onchange="attachFile(event)"><input type="file" id="imageInput" accept="image/*" style="display:none" onchange="attachImage(event)"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="pdf-modal-overlay" id="pdfModal">
+    <div class="pdf-modal">
+        <div class="pdf-modal-title">Export to PDF</div>
+        <div class="pdf-modal-sub">Choose articles to include in your export.</div>
+        <div class="pdf-article-list" id="pdfArticleList"></div>
+        <div class="pdf-options"><label class="pdf-opt-label"><input type="checkbox" id="pdfIncludeComments" checked> Include comments</label><label class="pdf-opt-label"><input type="checkbox" id="pdfIncludeMeta" checked> Include date & tag</label></div>
+        <div class="pdf-progress" id="pdfProgress"><div class="pdf-spinner"></div><span>Generating PDF…</span></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn-sm" onclick="closePdfModal()">Cancel</button><button class="btn-primary" id="pdfExportBtn" onclick="exportPDF()">Export PDF</button></div>
+    </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()"><button class="lightbox-close" onclick="closeLightbox()">✕</button><img id="lightbox-img" src=""></div>
+
+<div class="modal-overlay" id="adminModal">
+    <div class="modal-card">
+        <div class="modal-title">Admin Sign In</div>
+        <div class="modal-error" id="admin-error"></div>
+        <div class="modal-success" id="admin-success"></div>
+        <input class="modal-input" id="admin-username" placeholder="Username" maxlength="30" autocomplete="off">
+        <input class="modal-input" id="admin-password" type="password" placeholder="Password" maxlength="50" autocomplete="off">
+        <div class="modal-btns"><button class="btn-sm" onclick="closeAdminModal()">Cancel</button><button class="btn-primary" id="admin-submit-btn" onclick="adminSubmit()">Sign In</button></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="channelModal">
+    <div class="modal-card">
+        <div class="modal-title">New channel</div>
+        <input class="modal-input" id="newChannelName" placeholder="channel-name" maxlength="24">
+        <input class="modal-input" id="newChannelDesc" placeholder="What's this channel for?">
+        <div class="modal-btns"><button class="btn-sm" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="createChannel()">Create</button></div>
+    </div>
+</div>
+
+<script>
+    const COLORS = ['#b5451b','#2c6e49','#1d5fa3','#7b2d8b','#b5860e','#1a7a7a','#c0392b','#2980b9'];
+    let profile = JSON.parse(localStorage.getItem('iw_profile') || '{"name":"","bio":"","color":"#b5451b"}');
+    let articles = JSON.parse(localStorage.getItem('iw_articles') || '[]');
+    let chatData = JSON.parse(localStorage.getItem('iw_chat') || '{}');
+    let channels = JSON.parse(localStorage.getItem('iw_channels') || JSON.stringify([{id:'general',label:'general',desc:'Chat about anything'},{id:'writing',label:'writing',desc:'Talk craft and process'},{id:'ideas',label:'ideas',desc:'Share half-baked thoughts'},{id:'feedback',label:'feedback',desc:'Get eyes on your work'}]));
+    let currentChannel = 'general';
+    let replyTo = null;
+    let pendingFiles = [];
+    let currentArticleIdx = -1;
+    let draftTimer = null;
+    let editorCoverImage = null;
+
+    const ADMIN_USERNAME = 'Vladimir';
+    const ADMIN_PASSWORD_HASH = (() => { let h=0; for(let c of 'Nemogudasesetim100%') h=Math.imul(31,h)+c.charCodeAt(0)|0; return Math.abs(h).toString(36); })();
+
+    let adminSession = JSON.parse(localStorage.getItem('iw_admin_session') || 'null');
+
+    function saveAll() {
+        localStorage.setItem('iw_profile', JSON.stringify(profile));
+        localStorage.setItem('iw_articles', JSON.stringify(articles));
+        localStorage.setItem('iw_chat', JSON.stringify(chatData));
+        localStorage.setItem('iw_channels', JSON.stringify(channels));
+        localStorage.setItem('iw_admin_session', JSON.stringify(adminSession));
+    }
+
+    function isAdminLoggedIn() { return adminSession !== null && adminSession.username === ADMIN_USERNAME; }
+    function getAdminUsername() { return isAdminLoggedIn() ? ADMIN_USERNAME : null; }
+
+    function openAdminModal() {
+        document.getElementById('admin-username').value = '';
+        document.getElementById('admin-password').value = '';
+        document.getElementById('admin-error').classList.remove('show');
+        document.getElementById('admin-error').textContent = '';
+        document.getElementById('admin-success').classList.remove('show');
+        document.getElementById('admin-success').textContent = '';
+        document.getElementById('adminModal').classList.add('open');
+        document.getElementById('admin-username').focus();
+    }
+
+    function closeAdminModal() { document.getElementById('adminModal').classList.remove('open'); }
+
+    function adminSubmit() {
+        const username = document.getElementById('admin-username').value.trim();
+        const password = document.getElementById('admin-password').value.trim();
+        const errorEl = document.getElementById('admin-error');
+        errorEl.classList.remove('show');
+
+        if (username.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) {
+            errorEl.textContent = 'Invalid username.';
+            errorEl.classList.add('show');
+            return;
+        }
+        let hash = 0;
+        for (let c of password) hash = Math.imul(31, hash) + c.charCodeAt(0) | 0;
+        const enteredHash = Math.abs(hash).toString(36);
+        if (enteredHash !== ADMIN_PASSWORD_HASH) {
+            errorEl.textContent = 'Invalid password.';
+            errorEl.classList.add('show');
+            return;
+        }
+
+        adminSession = { username: ADMIN_USERNAME };
+        saveAll();
+        updateNavForAdmin();
+        closeAdminModal();
+    }
+
+    function adminLogout() {
+        if (confirm('Log out as Vladimir?')) {
+            adminSession = null;
+            saveAll();
+            updateNavForAdmin();
+            if (document.getElementById('page-write').classList.contains('active')) showPage('articles');
+            if (document.getElementById('page-read').classList.contains('active') && currentArticleIdx >= 0) openArticle(currentArticleIdx);
+        }
+    }
+
+    function updateNavForAdmin() {
+        const writeBtn = document.getElementById('btn-write');
+        const adminLoginBtn = document.getElementById('btn-admin-login');
+        const adminBadge = document.getElementById('admin-badge');
+        const adminLogoutBtn = document.getElementById('btn-admin-logout');
+
+        if (isAdminLoggedIn()) {
+            writeBtn.style.display = '';
+            adminLoginBtn.style.display = 'none';
+            adminBadge.style.display = 'inline-flex';
+            adminLogoutBtn.style.display = '';
+            writeBtn.textContent = '+ Write';
+        } else {
+            writeBtn.style.display = 'none';
+            adminLoginBtn.style.display = '';
+            adminBadge.style.display = 'none';
+            adminLogoutBtn.style.display = 'none';
+        }
+        updateReaderAdminActions();
+    }
+
+    function updateReaderAdminActions() {
+        const editBtn = document.getElementById('edit-article-btn');
+        const deleteBtn = document.getElementById('delete-article-btn');
+        if (isAdminLoggedIn() && currentArticleIdx >= 0 && articles[currentArticleIdx]) {
+            editBtn.style.display = ''; deleteBtn.style.display = '';
+        } else {
+            editBtn.style.display = 'none'; deleteBtn.style.display = 'none';
+        }
+    }
+
+    function showPage(id) {
+        if (id === 'write' && !isAdminLoggedIn()) { openAdminModal(); return; }
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        const page = document.getElementById('page-' + id);
+        if (page) page.classList.add('active');
+        const tab = document.getElementById('tab-' + id);
+        if (tab) tab.classList.add('active');
+        if (id === 'chat') {
+            document.body.classList.add('in-chat'); renderChannels(); renderMessages();
+        } else {
+            document.body.classList.remove('in-chat');
+            if (id === 'articles') renderArticles();
+            if (id === 'profile') renderProfile();
+            if (id === 'write') { clearEditor(); document.getElementById('editorTitle').focus(); }
+        }
+        updateReaderAdminActions();
+    }
+
+    function saveProfile() { profile.name = document.getElementById('profileName').value; profile.bio = document.getElementById('profileBio').value; saveAll(); updateNavAvatar(); syncProfileDisplays(); }
+    function syncProfileDisplays() {
+        const av = document.getElementById('nav-avatar'); av.style.background = profile.color; av.textContent = initials(profile.name || 'Me'); av.style.color = '#fff';
+        document.getElementById('profile-av-large').style.background = profile.color; document.getElementById('profile-av-large').textContent = initials(profile.name || 'Me');
+    }
+    function updateNavAvatar() { syncProfileDisplays(); }
+
+    function renderProfile() {
+        document.getElementById('profileName').value = profile.name; document.getElementById('profileBio').value = profile.bio; syncProfileDisplays();
+        const sw = document.getElementById('colorSwatches'); sw.innerHTML = '';
+        COLORS.forEach(c => { const d = document.createElement('div'); d.className = 'color-swatch' + (c===profile.color?' active':''); d.style.background = c; d.onclick = () => { profile.color = c; saveAll(); renderProfile(); }; sw.appendChild(d); });
+        const myComments = articles.reduce((s,a) => s + (a.comments||[]).length, 0);
+        const myMsgs = Object.values(chatData).reduce((s,msgs) => s + msgs.filter(m => m.user === (profile.name||'anonymous')).length, 0);
+        document.getElementById('stat-articles').textContent = articles.length; document.getElementById('stat-comments').textContent = myComments; document.getElementById('stat-msgs').textContent = myMsgs;
+        const list = document.getElementById('profile-articles-list'); list.innerHTML = '';
+        if (!articles.length) { list.innerHTML = '<p style="color:var(--warm-mid);font-style:italic;">No articles yet.</p>'; return; }
+        articles.slice().reverse().forEach((a,i) => {
+            const idx = articles.length-1-i;
+            const d = document.createElement('div'); d.style.cssText = 'border:1px solid var(--cream);border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;background:#fff;transition:border-color 0.15s;';
+            d.innerHTML = `<div style="font-family:'Lora',serif;font-weight:700;font-size:15px;margin-bottom:4px;">${escHtml(a.title)}</div><div style="font-size:12px;color:var(--warm-mid);font-family:'JetBrains Mono',monospace;">${new Date(a.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} · ${(a.comments||[]).length} comments</div>`;
+            d.onmouseenter = () => d.style.borderColor = 'var(--accent)'; d.onmouseleave = () => d.style.borderColor = 'var(--cream)'; d.onclick = () => openArticle(idx); list.appendChild(d);
+        });
+        document.getElementById('online-name').textContent = profile.name || 'you';
+    }
+
+    function renderBodyHTML(body) { /* same as before */ if(!body) return ''; return body.split('\n\n').map(block => { const imgMatch = block.match(/^!\[([^\]]*)\]\((data:image\/[^)]+)\)$/); if(imgMatch) return `<figure class="body-image-figure"><img src="${imgMatch[2]}" alt="${escHtml(imgMatch[1])}" class="body-image" loading="lazy"><figcaption class="body-image-figcaption">${escHtml(imgMatch[1])}</figcaption></figure>`; return `<p>${escHtml(block)}</p>`; }).join(''); }
+
+    function renderArticles() { /* same */ const q = (document.getElementById('articleSearch').value||'').toLowerCase(); const activeTag = document.querySelector('.filter-btn.active'); const tagFilter = activeTag ? activeTag.dataset.tag : ''; const grid = document.getElementById('articlesGrid'); const all = articles.slice().reverse(); const filtered = all.filter(a => { const matchQ = !q || a.title.toLowerCase().includes(q) || a.body.toLowerCase().includes(q) || (a.tag||'').toLowerCase().includes(q); const matchTag = !tagFilter || (a.tag||'').toUpperCase() === tagFilter; return matchQ && matchTag; }); grid.innerHTML = ''; if(!filtered.length) { grid.innerHTML = '<div class="no-articles"><p>No articles found.</p></div>'; } else { filtered.forEach((a,i) => { const realIdx = articles.indexOf(a); const rt = Math.max(1,Math.ceil(a.body.split(' ').length/200)); const dt = new Date(a.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); const card = document.createElement('div'); card.className = 'article-card'; card.style.animationDelay = (i*0.06)+'s'; let coverHTML = ''; if(a.coverImage) coverHTML = `<div class="card-image-wrap"><img src="${a.coverImage}" alt="Cover" loading="lazy"></div>`; const authorName = a.author || (profile.name||'Anonymous'); card.innerHTML = `${coverHTML}<span class="card-tag">${escHtml(a.tag||'ESSAY')}</span><div class="card-title">${escHtml(a.title)}</div><div class="card-excerpt">${escHtml(a.subtitle||a.body.slice(0,80)+'…')}</div><div class="card-footer"><span class="card-meta">${dt} · ${rt} min</span><span class="card-comments-count">💬 ${(a.comments||[]).length}</span></div><div class="card-author">By ${escHtml(authorName)}</div>`; card.onclick = () => openArticle(realIdx); grid.appendChild(card); }); } const tags = [...new Set(articles.map(a => (a.tag||'ESSAY').toUpperCase()))]; const tf = document.getElementById('tagFilters'); tf.innerHTML = ''; tags.forEach(t => { const b = document.createElement('button'); b.className = 'filter-btn'+(tagFilter===t?' active':''); b.dataset.tag = t; b.textContent = t; b.onclick = () => { document.querySelectorAll('.filter-btn').forEach(x => x.classList.remove('active')); if(tagFilter !== t) b.classList.add('active'); renderArticles(); }; tf.appendChild(b); }); }
+
+    function filterArticles() { renderArticles(); }
+
+    function openArticle(idx) { currentArticleIdx = idx; const a = articles[idx]; if(!a) return; document.getElementById('reader-tag').textContent = a.tag||'ESSAY'; document.getElementById('reader-title').textContent = a.title; document.getElementById('reader-subtitle').textContent = a.subtitle||''; document.getElementById('reader-date').textContent = new Date(a.date).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); const editedEl = document.getElementById('reader-edited'); if(a.edited){ editedEl.textContent = 'Edited '+timeAgo(a.edited); editedEl.style.display='inline'; } else editedEl.style.display='none'; document.getElementById('reader-readtime').textContent = Math.max(1,Math.ceil(a.body.split(' ').length/200))+' min read'; document.getElementById('reader-body').innerHTML = renderBodyHTML(a.body); const heroImg = document.getElementById('reader-hero-image'); if(a.coverImage){ heroImg.src = a.coverImage; heroImg.style.display='block'; } else { heroImg.src=''; heroImg.style.display='none'; } const authorName = a.author || (profile.name||'Anonymous'); const authorColor = a.authorColor || profile.color; document.getElementById('reader-av').style.background = authorColor; document.getElementById('reader-av').textContent = initials(authorName); document.getElementById('reader-author-name').textContent = authorName; renderComments(idx); document.getElementById('comment-av').style.background = profile.color; document.getElementById('comment-av').textContent = initials(profile.name||'Me'); updateReaderAdminActions(); showPage('read'); document.getElementById('page-read').scrollTop = 0; }
+
+    function deleteCurrentArticle() { if(!isAdminLoggedIn()){ alert('Only admin can delete articles.'); return; } if(!confirm('Delete this article?')) return; articles.splice(currentArticleIdx,1); saveAll(); showPage('articles'); }
+
+    function renderComments(idx) { const a = articles[idx]; const list = document.getElementById('commentsList'); list.innerHTML = ''; document.getElementById('comments-title').textContent = `Comments (${(a.comments||[]).length})`; if(!(a.comments||[]).length){ list.innerHTML = '<div class="no-comments">No comments yet.</div>'; return; } a.comments.forEach(c => { const el = document.createElement('div'); el.className = 'comment-item'; const color = COLORS[Math.abs(hashCode(c.user))%COLORS.length]; el.innerHTML = `<div class="av" style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex-shrink:0;background:${color};">${initials(c.user)}</div><div class="comment-bubble"><div class="comment-head"><span class="comment-name">${escHtml(c.user)}</span><span class="comment-time">${timeAgo(c.date)}</span></div><div class="comment-text">${escHtml(c.text)}</div></div>`; list.appendChild(el); }); }
+
+    function postComment() { const text = document.getElementById('commentText').value.trim(); if(!text) return; const a = articles[currentArticleIdx]; if(!a) return; if(!a.comments) a.comments = []; a.comments.push({user:profile.name||'Anonymous',text,date:Date.now()}); saveAll(); document.getElementById('commentText').value = ''; renderComments(currentArticleIdx); document.getElementById('commentsList').lastElementChild?.scrollIntoView({behavior:'smooth'}); }
+
+    let editingIdx = -1;
+    function clearEditor() { editingIdx = -1; editorCoverImage = null; document.getElementById('editorTitle').value=''; document.getElementById('editorSubtitle').value=''; document.getElementById('editorTag').value=''; document.getElementById('editorBody').value=''; document.getElementById('editor-status').textContent='new draft'; document.getElementById('editor-publish-btn').textContent='Publish article →'; document.getElementById('editor-cancel-btn').onclick = () => showPage('articles'); updateCoverPreview(); }
+    function autosaveDraft() { clearTimeout(draftTimer); document.getElementById('editor-status').textContent='saving…'; draftTimer = setTimeout(() => { document.getElementById('editor-status').textContent = editingIdx>=0?'editing…':'draft saved'; },800); }
+    function cancelEdit() { if(editingIdx>=0) showPage('read'); else showPage('articles'); }
+    function editCurrentArticle() { if(!isAdminLoggedIn()){ alert('Only admin can edit articles.'); return; } const a = articles[currentArticleIdx]; if(!a) return; editingIdx = currentArticleIdx; editorCoverImage = a.coverImage||null; document.getElementById('editorTag').value = a.tag||''; document.getElementById('editorTitle').value = a.title||''; document.getElementById('editorSubtitle').value = a.subtitle||''; document.getElementById('editorBody').value = a.body||''; document.getElementById('editor-status').textContent='editing published article'; document.getElementById('editor-publish-btn').textContent='✓ Save changes'; document.getElementById('editor-cancel-btn').onclick = () => { editingIdx=-1; editorCoverImage=null; updateCoverPreview(); showPage('read'); }; updateCoverPreview(); document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active')); document.getElementById('page-write').classList.add('active'); document.body.classList.remove('in-chat'); document.getElementById('editorTitle').focus(); }
+    function publishArticle() { if(!isAdminLoggedIn()){ alert('Only admin can publish articles.'); return; } const title = document.getElementById('editorTitle').value.trim(); const body = document.getElementById('editorBody').value.trim(); if(!title||!body){ alert('Please add a title and some content.'); return; } const adminUser = ADMIN_USERNAME; const adminColor = '#b5451b'; if(editingIdx>=0){ const existing = articles[editingIdx]; articles[editingIdx] = {...existing, title, subtitle: document.getElementById('editorSubtitle').value.trim(), tag: document.getElementById('editorTag').value.trim().toUpperCase()||'ESSAY', body, coverImage: editorCoverImage||existing.coverImage||null, edited: Date.now(), author: existing.author||adminUser, authorColor: existing.authorColor||adminColor}; saveAll(); const idx = editingIdx; editingIdx=-1; editorCoverImage=null; updateCoverPreview(); openArticle(idx); } else { articles.push({title, subtitle: document.getElementById('editorSubtitle').value.trim(), tag: document.getElementById('editorTag').value.trim().toUpperCase()||'ESSAY', body, coverImage: editorCoverImage||null, date: Date.now(), comments:[], author: adminUser, authorColor: adminColor}); saveAll(); showPage('articles'); } }
+
+    function handleCoverImageUpload(e) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = ev => { editorCoverImage = ev.target.result; updateCoverPreview(); }; reader.readAsDataURL(file); e.target.value = ''; }
+    function removeCoverImage() { editorCoverImage = null; updateCoverPreview(); }
+    function updateCoverPreview() { const preview = document.getElementById('editorCoverPreview'); const img = document.getElementById('editorCoverImg'); if(editorCoverImage){ img.src = editorCoverImage; preview.classList.add('has-image'); } else { img.src = ''; preview.classList.remove('has-image'); } }
+    function handleBodyImageInsert(e) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = ev => { const dataURL = ev.target.result; const altText = file.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' '); const marker = `![${altText}](${dataURL})`; insertAtCursor(document.getElementById('editorBody'), marker); autosaveDraft(); }; reader.readAsDataURL(file); e.target.value = ''; }
+    function insertAtCursor(textarea, text) { const start = textarea.selectionStart; const end = textarea.selectionEnd; const before = textarea.value.substring(0,start); const after = textarea.value.substring(end); const needsLeadingNewline = before.length>0 && !before.endsWith('\n\n') && !before.endsWith('\n'); const needsTrailingNewline = after.length>0 && !after.startsWith('\n'); let insertion = text; if(needsLeadingNewline) insertion = '\n\n' + insertion; if(needsTrailingNewline) insertion = insertion + '\n\n'; else if(after.length>0) insertion = insertion + '\n'; textarea.value = before + insertion + after; textarea.selectionStart = textarea.selectionEnd = start + insertion.length; textarea.focus(); }
+
+    function renderChannels() { const list = document.getElementById('channelList'); list.innerHTML = ''; channels.forEach(ch => { const el = document.createElement('div'); el.className = 'channel-item'+(ch.id===currentChannel?' active':''); el.innerHTML = `<span class="channel-hash">#</span><span class="channel-name">${escHtml(ch.label)}</span>`; el.onclick = () => { currentChannel = ch.id; renderChannels(); renderMessages(); document.getElementById('chat-channel-name').textContent = ch.label; document.getElementById('chat-channel-desc').textContent = '— '+ch.desc; document.getElementById('chatMsg').placeholder = 'Message #'+ch.label+'…'; }; list.appendChild(el); }); }
+    function renderMessages() { /* unchanged */ const area = document.getElementById('messagesArea'); const q = (document.getElementById('chatSearch').value||'').toLowerCase(); let msgs = (chatData[currentChannel]||[]); if(q) msgs = msgs.filter(m => (m.text||'').toLowerCase().includes(q) || (m.user||'').toLowerCase().includes(q)); area.innerHTML = ''; if(!msgs.length){ area.innerHTML = `<div class="system-msg">— start of #${currentChannel} —</div>`; return; } area.innerHTML = `<div class="system-msg">— start of #${currentChannel} —</div>`; msgs.forEach((m,i) => { const el = document.createElement('div'); el.className = 'msg-group'; const color = COLORS[Math.abs(hashCode(m.user||''))%COLORS.length]; const t = new Date(m.time).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); let content = ''; if(m.replyTo) content += `<div class="msg-reply-preview">↩ ${escHtml(m.replyTo)}</div>`; if(m.text) content += `<div class="msg-text">${escHtml(m.text)}</div>`; if(m.image) content += `<img class="msg-image" src="${m.image}" onclick="openLightbox('${m.image}')">`; if(m.file) content += `<div class="msg-file"><span class="msg-file-icon">${fileIcon(m.file.type)}</span><div class="msg-file-info"><div class="msg-file-name">${escHtml(m.file.name)}</div><div class="msg-file-size">${formatSize(m.file.size)}</div></div><a class="msg-file-dl" href="${m.file.data}" download="${escHtml(m.file.name)}">↓</a></div>`; if(m.reactions && Object.keys(m.reactions).length){ content += '<div class="msg-reactions">'; Object.entries(m.reactions).forEach(([emoji,count]) => { content += `<span class="msg-reaction" onclick="toggleReaction(${i},'${emoji}')">${emoji} ${count}</span>`; }); content += '</div>'; } el.innerHTML = `<div class="msg-av" style="background:${color};">${initials(m.user||'?')}</div><div class="msg-content"><div class="msg-header"><span class="msg-username" style="color:${color};">${escHtml(m.user||'anonymous')}</span><span class="msg-time">${t}</span></div>${content}</div><div class="msg-action-btns"><button class="mab" onclick="addReaction(${i},'👍')">👍</button><button class="mab" onclick="addReaction(${i},'❤️')">❤️</button><button class="mab" onclick="startReply(${i})">↩</button><button class="mab" onclick="deleteMsg(${i})">🗑</button></div>`; area.appendChild(el); }); area.scrollTop = area.scrollHeight; }
+    function filterMessages() { renderMessages(); }
+
+    function sendMessage() { const name = (document.getElementById('chatName').value.trim())||profile.name||'anonymous'; const text = document.getElementById('chatMsg').value.trim(); if(!text && !pendingFiles.length) return; if(!chatData[currentChannel]) chatData[currentChannel] = []; if(pendingFiles.length){ pendingFiles.forEach(f => { const msg = {user:name, time:Date.now(), reactions:{}}; if(f.type==='image') msg.image = f.data; else msg.file = {name:f.name, size:f.size, type:f.mimeType, data:f.data}; if(replyTo!==null) msg.replyTo = replyTo; chatData[currentChannel].push(msg); }); pendingFiles = []; document.getElementById('filePreviews').innerHTML = ''; } if(text){ const msg = {user:name, text, time:Date.now(), reactions:{}}; if(replyTo!==null){ msg.replyTo = replyTo; replyTo = null; document.getElementById('replyBanner').style.display='none'; } chatData[currentChannel].push(msg); } if(chatData[currentChannel].length>500) chatData[currentChannel] = chatData[currentChannel].slice(-500); saveAll(); document.getElementById('chatMsg').value = ''; renderMessages(); renderProfile(); }
+
+    function addReaction(msgIdx, emoji) { const msgs = chatData[currentChannel]||[]; const m = msgs[msgIdx]; if(!m) return; if(!m.reactions) m.reactions={}; m.reactions[emoji] = (m.reactions[emoji]||0)+1; saveAll(); renderMessages(); }
+    function toggleReaction(msgIdx, emoji) { addReaction(msgIdx, emoji); }
+    function startReply(msgIdx) { const msgs = chatData[currentChannel]||[]; const m = msgs[msgIdx]; if(!m) return; const preview = (m.text||'[file]').slice(0,60); replyTo = preview; document.getElementById('replyBanner').style.display='flex'; document.getElementById('replyBannerText').textContent = 'Replying to: '+preview; document.getElementById('chatMsg').focus(); }
+    function cancelReply() { replyTo = null; document.getElementById('replyBanner').style.display='none'; }
+    function deleteMsg(msgIdx) { const msgs = chatData[currentChannel]||[]; msgs.splice(msgIdx,1); saveAll(); renderMessages(); }
+
+    function attachFile(e) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = ev => { pendingFiles.push({type:'file', name:file.name, size:file.size, mimeType:file.type, data:ev.target.result}); showFilePreviews(); }; reader.readAsDataURL(file); e.target.value=''; }
+    function attachImage(e) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = ev => { pendingFiles.push({type:'image', name:file.name, size:file.size, data:ev.target.result}); showFilePreviews(); }; reader.readAsDataURL(file); e.target.value=''; }
+    function showFilePreviews() { const area = document.getElementById('filePreviews'); area.innerHTML = ''; pendingFiles.forEach((f,i) => { const el = document.createElement('div'); el.className = 'file-preview-area'; if(f.type==='image') el.innerHTML = `<div class="file-preview-item"><img src="${f.data}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;"><span class="file-preview-name">${escHtml(f.name)}</span><button class="file-preview-rm" onclick="removePending(${i})">✕</button></div>`; else el.innerHTML = `<div class="file-preview-item"><span>${fileIcon(f.mimeType)}</span><span class="file-preview-name">${escHtml(f.name)}</span><button class="file-preview-rm" onclick="removePending(${i})">✕</button></div>`; area.appendChild(el); }); }
+    function removePending(i) { pendingFiles.splice(i,1); showFilePreviews(); }
+
+    function openNewChannelModal() { document.getElementById('channelModal').classList.add('open'); document.getElementById('newChannelName').focus(); }
+    function closeModal() { document.getElementById('channelModal').classList.remove('open'); }
+    function createChannel() { const name = document.getElementById('newChannelName').value.trim().toLowerCase().replace(/\s+/g,'-'); const desc = document.getElementById('newChannelDesc').value.trim(); if(!name) return; if(channels.find(c=>c.id===name)){ alert('Channel already exists.'); return; } channels.push({id:name, label:name, desc:desc||'A new channel'}); saveAll(); closeModal(); renderChannels(); document.getElementById('newChannelName').value=''; document.getElementById('newChannelDesc').value=''; }
+
+    function openLightbox(src) { document.getElementById('lightbox').classList.add('open'); document.getElementById('lightbox-img').src = src; }
+    function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+
+    function initials(name) { return (name||'?').trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?'; }
+    function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function timeAgo(ts) { const d = (Date.now()-ts)/1000; if(d<60) return 'just now'; if(d<3600) return Math.floor(d/60)+'m ago'; if(d<86400) return Math.floor(d/3600)+'h ago'; return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+    function hashCode(s) { let h=0; for(let i=0;i<s.length;i++) h=Math.imul(31,h)+s.charCodeAt(i)|0; return h; }
+    function fileIcon(type) { if(!type) return '📄'; if(type.includes('pdf')) return '📑'; if(type.includes('word')||type.includes('document')) return '📝'; if(type.includes('sheet')||type.includes('excel')) return '📊'; if(type.includes('zip')||type.includes('rar')) return '🗜️'; if(type.includes('audio')) return '🎵'; if(type.includes('video')) return '🎬'; return '📄'; }
+    function formatSize(bytes) { if(!bytes) return ''; if(bytes<1024) return bytes+'B'; if(bytes<1024*1024) return (bytes/1024).toFixed(1)+'KB'; return (bytes/1024/1024).toFixed(1)+'MB'; }
+
+    function buildQuickEmoji() { const emojis = ['😊','😂','❤️','🔥','👍','😮','🎉','💡']; const row = document.getElementById('quickEmoji'); emojis.forEach(e => { const b = document.createElement('button'); b.className='eq'; b.textContent=e; b.onclick = () => { document.getElementById('chatMsg').value += e; document.getElementById('chatMsg').focus(); }; row.appendChild(b); }); }
+
+    function copyCryptoAddress(elementId, btn) { const el = document.getElementById(elementId); if(!el) return; const text = el.textContent.trim(); if(navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(()=>showCopyFeedback(btn)).catch(()=>fallbackCopy(text,btn)); } else fallbackCopy(text,btn); }
+    function fallbackCopy(text, btn) { const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.left='-9999px'; ta.style.top='-9999px'; document.body.appendChild(ta); ta.focus(); ta.select(); try { document.execCommand('copy'); showCopyFeedback(btn); } catch(e) { alert('Could not copy. Please select and copy the address manually.'); } document.body.removeChild(ta); }
+    function showCopyFeedback(btn) { if(!btn) return; const orig = btn.textContent; btn.textContent = '✓ Copied!'; btn.classList.add('copied'); setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); },2000); }
+
+    let darkMode = localStorage.getItem('iw_dark')==='1';
+    function applyTheme() { if(darkMode){ document.documentElement.classList.add('dark'); document.getElementById('themeToggle').textContent='☀️'; } else { document.documentElement.classList.remove('dark'); document.getElementById('themeToggle').textContent='🌙'; } }
+    function toggleTheme() { darkMode=!darkMode; localStorage.setItem('iw_dark',darkMode?'1':'0'); applyTheme(); }
+
+    function openPdfModal() { /* unchanged */ const list = document.getElementById('pdfArticleList'); list.innerHTML = ''; if(!articles.length){ list.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--warm-mid);font-size:14px;font-style:italic;">No articles to export.</div>'; } else { articles.slice().reverse().forEach((a,i) => { const realIdx = articles.length-1-i; const dt = new Date(a.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); const el = document.createElement('label'); el.className='pdf-article-item'; el.innerHTML = `<input type="checkbox" class="pdf-check" data-idx="${realIdx}" checked><div style="flex:1;min-width:0;"><div class="pdf-article-item-title">${escHtml(a.title)}</div><div class="pdf-article-item-meta">${dt} · ${a.tag||'ESSAY'}</div></div>`; list.appendChild(el); }); } document.getElementById('pdfModal').classList.add('open'); }
+    function closePdfModal() { document.getElementById('pdfModal').classList.remove('open'); document.getElementById('pdfProgress').classList.remove('show'); document.getElementById('pdfExportBtn').disabled = false; }
+    function renderBodyHTMLForPDF(body) { if(!body) return ''; return body.split('\n\n').map(block => { const imgMatch = block.match(/^!\[([^\]]*)\]\((data:image\/[^)]+)\)$/); if(imgMatch) return `<figure style="margin:1.5rem 0;text-align:center;"><img src="${imgMatch[2]}" alt="${escHtml(imgMatch[1])}" style="max-width:100%;border-radius:8px;border:1px solid #ede8df;display:block;margin:0 auto;"><figcaption style="font-size:12px;color:#6e6660;font-style:italic;margin-top:0.4rem;">${escHtml(imgMatch[1])}</figcaption></figure>`; return `<p>${escHtml(block)}</p>`; }).join(''); }
+    function exportPDF() { /* unchanged */ const checked = [...document.querySelectorAll('.pdf-check:checked')].map(c=>parseInt(c.dataset.idx)); if(!checked.length){ alert('Select at least one article.'); return; } const inclComments = document.getElementById('pdfIncludeComments').checked; const inclMeta = document.getElementById('pdfIncludeMeta').checked; document.getElementById('pdfProgress').classList.add('show'); document.getElementById('pdfExportBtn').disabled = true; setTimeout(() => { const win = window.open('','_blank'); const bg='#faf8f4',ink='#14110f',mid='#6e6660',acc='#b5451b',cardBg='#fff',borderC='#ede8df'; let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Outfit',sans-serif;background:${bg};color:${ink};padding:0;line-height:1.6;}.cover{text-align:center;padding:80px 40px 60px;border-bottom:2px solid ${acc};margin-bottom:0;}.cover-logo{font-family:'Lora',serif;font-size:32px;font-weight:700;color:${ink};}.cover-logo span{color:${acc};font-style:italic;}.cover-sub{font-size:14px;color:${mid};margin-top:8px;}.cover-date{font-size:12px;color:${mid};margin-top:4px;}.article{padding:60px 72px;border-bottom:1px solid ${borderC};page-break-after:always;}.article:last-child{border-bottom:none;page-break-after:auto;}.art-cover{width:100%;max-height:360px;object-fit:cover;border-radius:10px;margin-bottom:20px;border:1px solid ${borderC};}.art-tag{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:${acc};font-weight:600;margin-bottom:12px;}.art-title{font-family:'Lora',serif;font-size:28px;font-weight:700;line-height:1.2;margin-bottom:10px;color:${ink};}.art-subtitle{font-size:15px;color:${mid};margin-bottom:16px;font-weight:300;}.art-meta{font-size:12px;color:${mid};margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid ${borderC};}.art-body{font-size:16px;line-height:1.85;font-weight:300;color:#2a2320;}.art-body p{margin-bottom:1.4rem;}.art-author{font-size:13px;color:${acc};font-weight:500;margin-bottom:8px;}.comments-section{margin-top:36px;padding-top:24px;border-top:1px solid ${borderC};}.comments-title{font-family:'Lora',serif;font-size:14px;font-weight:600;margin-bottom:16px;color:${mid};}.comment{display:flex;gap:12px;margin-bottom:14px;}.c-av{width:30px;height:30px;border-radius:50%;background:${acc};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}.c-body{flex:1;background:${cardBg};border:1px solid ${borderC};border-radius:8px;padding:8px 12px;}.c-head{font-size:12px;font-weight:600;margin-bottom:4px;}.c-text{font-size:13px;color:#2a2320;line-height:1.5;}@media print{body{background:#fff;}.article{padding:48px 60px;}.cover{padding:60px 40px 40px;}}</style></head><body><div class="cover"><div class="cover-logo">ink<span>well</span></div><div class="cover-sub">${profile.name?'By '+escHtml(profile.name):'Personal publication'}</div><div class="cover-date">Exported ${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div></div>`; checked.forEach(idx => { const a = articles[idx]; if(!a) return; const dt = new Date(a.date).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); const rt = Math.max(1,Math.ceil(a.body.split(' ').length/200)); let metaStr = inclMeta?`${dt} · ${a.tag||'ESSAY'} · ${rt} min read`:''; const authorName = a.author||(profile.name||'Anonymous'); let coverHTML = ''; if(a.coverImage) coverHTML = `<img class="art-cover" src="${a.coverImage}" alt="Cover image">`; let commentsHtml = ''; if(inclComments && (a.comments||[]).length){ commentsHtml = `<div class="comments-section"><div class="comments-title">Comments (${a.comments.length})</div>`; a.comments.forEach(c => { const col = COLORS[Math.abs(hashCode(c.user))%COLORS.length]; commentsHtml += `<div class="comment"><div class="c-av" style="background:${col};">${initials(c.user)}</div><div class="c-body"><div class="c-head">${escHtml(c.user)}</div><div class="c-text">${escHtml(c.text)}</div></div></div>`; }); commentsHtml += '</div>'; } const bodyHtml = renderBodyHTMLForPDF(a.body); html += `<div class="article">${inclMeta?`<div class="art-tag">${escHtml(a.tag||'ESSAY')}</div>`:''}${coverHTML}<h1 class="art-title">${escHtml(a.title)}</h1>${a.subtitle?`<div class="art-subtitle">${escHtml(a.subtitle)}</div>`:''}${metaStr?`<div class="art-meta">${metaStr}</div>`:''}<div class="art-author">By ${escHtml(authorName)}</div><div class="art-body">${bodyHtml}</div>${commentsHtml}</div>`; }); html += `<script>window.onload=()=>{window.print();}<\/script></body></html>`; win.document.write(html); win.document.close(); closePdfModal(); },400); }
+
+    function init() {
+        applyTheme();
+        if (!articles.length) {
+            articles.push({title:'The art of writing in public', subtitle:'Why sharing unfinished thoughts might be the bravest thing a writer can do.', tag:'CRAFT', body:`There is a peculiar terror in hitting publish. You have spent hours — maybe days — turning a vague feeling into language, and now the words sit there, exposed.\n\nThe blank page is frightening. But a filled page, visible to others, is somehow more so. We polish endlessly because we believe polish protects us.\n\nThe writers I admire most share something before it is ready. They trust the reader to meet them halfway. They know that a live idea, still breathing, is worth more than a polished corpse.`, date:Date.now()-86400000*3, coverImage:null, author:ADMIN_USERNAME, authorColor:'#b5451b', comments:[{user:'A reader', text:'This resonates so much. The perfectionism trap is real.', date:Date.now()-86400000*2}]});
+            saveAll();
+        }
+        const ch = channels.find(c=>c.id===currentChannel);
+        if(ch) document.getElementById('chat-channel-desc').textContent = '— '+ch.desc;
+        updateNavAvatar();
+        updateNavForAdmin();
+        renderArticles();
+        buildQuickEmoji();
+        document.getElementById('channelModal').addEventListener('click', e => { if(e.target===document.getElementById('channelModal')) closeModal(); });
+        document.getElementById('adminModal').addEventListener('click', e => { if(e.target===document.getElementById('adminModal')) closeAdminModal(); });
+        document.getElementById('pdfModal').addEventListener('click', e => { if(e.target===document.getElementById('pdfModal')) closePdfModal(); });
+        document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeModal(); closeAdminModal(); closeLightbox(); closePdfModal(); } });
+        document.getElementById('admin-password').addEventListener('keydown', e => { if(e.key==='Enter') adminSubmit(); });
+        document.getElementById('admin-username').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('admin-password').focus(); });
+    }
+    init();
+</script>
+</body>
+</html>
